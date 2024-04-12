@@ -70,7 +70,7 @@ class Raven {
             else this.frame++;
             this.timeSinceFlap = 0;
         }
-        if (this.x < 0 - this.width) gameOver = true;
+        // if (this.x < 0 - this.width) gameOver = true;
     }
     draw() {
         collisionCtx.fillStyle = this.color;
