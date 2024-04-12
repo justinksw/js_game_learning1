@@ -12,7 +12,7 @@ collisionCanvas.height = window.innerHeight;
 let gameOver = false;
 
 let score = 0;
-ctx.font = "50px Impact";
+ctx.font = "40px Impact";
 
 let timeToNextRaven = 0;
 let ravenInterval = 750;
@@ -27,7 +27,7 @@ class Raven {
         this.spriteWidth = 271;
         this.spriteHeight = 194;
 
-        this.sizeModifier = Math.random() * 0.5 + 0.3;
+        this.sizeModifier = Math.random() * 0.3 + 0.2;
         this.width = this.spriteWidth * this.sizeModifier;
         this.height = this.spriteHeight * this.sizeModifier;
         this.x = canvas.width;
@@ -143,14 +143,14 @@ function drawGameOver() {
 
     ctx.fillStyle = "black";
     ctx.fillText(
-        "GAME OVER, your score is: " + score,
+        "GAME OVER", // your score is: " + score,
         canvas.width / 2,
         canvas.height / 2
     );
 
     ctx.fillStyle = "white";
     ctx.fillText(
-        "GAME OVER, your score is: " + score,
+        "GAME OVER", // your score is: " + score,
         canvas.width / 2 + 5,
         canvas.height / 2 + 5
     );
