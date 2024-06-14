@@ -1,131 +1,244 @@
 /** @type {HTMLCanvasElement} */
+const canvas = document.getElementById("canvas1");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-//"load" "DOMContentLoaded"
-document.addEventListener("DOMContentLoaded", function () {
-    const canvas = document.getElementById("canvas1");
-    const ctx = canvas.getContext("2d");
-    canvas.width = 500;
-    canvas.height = 800;
+const collisionCanvas = document.getElementById("collisionCanvas");
+const collisionCtx = collisionCanvas.getContext("2d");
+collisionCanvas.width = window.innerWidth;
+collisionCanvas.height = window.innerHeight;
 
-    class Game {
-        constructor(ctx, width, height) {
-            this.ctx = ctx;
-            this.width = width;
-            this.height = height;
-            this.enemies = [];
-            this.enemyInterval = 500; // [ms]
-            this.enemyTimer = 0; // [ms] counter
-            this.enemyTypes = ["worm", "ghost"];
+let gameOver = false;
+
+let score = 0;
+ctx.font = "40px Impact";
+
+let timeToNextRaven = 0;
+let ravenInterval = 750;
+let lastTime = 0;
+
+let ravens = [];
+class Raven {
+    constructor() {
+        this.image = new Image();
+        this.image.src = "raven.png";
+        this.spriteWidth = 271;
+        this.spriteHeight = 194;
+
+        this.sizeModifier = Math.random() * 0.3 + 0.2;
+        this.width = this.spriteWidth * this.sizeModifier;
+        this.height = this.spriteHeight * this.sizeModifier;
+        this.x = canvas.width;
+        this.y = Math.random() * (canvas.height - this.height);
+        this.directionX = Math.random() * 5 + 3;
+        this.directionY = Math.random() * 5 - 2.5;
+        this.markedForDeletion = false;
+
+        this.frame = 0;
+        this.maxFrame = 4;
+        this.timeSinceFlap = 0;
+        this.flapInterval = Math.random() * 50 + 50;
+
+        this.randomColors = [
+            Math.floor(Math.random() * 255),
+            Math.floor(Math.random() * 255),
+            Math.floor(Math.random() * 255),
+        ];
+        this.color =
+            "rgb(" +
+            this.randomColors[0] +
+            "," +
+            this.randomColors[1] +
+            "," +
+            this.randomColors[2] +
+            ")";
+
+        // this.hasTrail = Math.random() > 0.5;
+        this.hasTrail = 1;
+    }
+    update(deltatime) {
+        if (this.y < 0 || this.y > canvas.height - this.height) {
+            this.directionY = this.directionY * -1;
         }
-        update(deltaTime) {
-            this.enemies = this.enemies.filter(
-                (object) => !object.markedForDeletion
-            );
+        this.x -= this.directionX;
+        this.y += this.directionY;
 
-            if (this.enemyTimer > this.enemyInterval) {
-                this.#addNewEnemy();
-                this.enemyTimer = 0;
+        if (this.x < 0 - this.width) this.markedForDeletion = true;
 
-                console.log(this.enemies);
-            } else {
-                this.enemyTimer += deltaTime;
+        this.timeSinceFlap += deltatime;
+        if (this.timeSinceFlap > this.flapInterval) {
+            if (this.frame > this.maxFrame) this.frame = 0;
+            else this.frame++;
+            this.timeSinceFlap = 0;
+
+            if (this.hasTrail) {
+                particles.push(
+                    new Particle(this.x, this.y, this.width, this.color)
+                );
             }
-
-            this.enemies.forEach((object) => object.update(deltaTime));
         }
-        draw() {
-            this.enemies.forEach((object) => object.draw(this.ctx));
-        }
-        // Private method #
-        #addNewEnemy() {
-            let idx = Math.floor(Math.random() * this.enemyTypes.length);
-            let type = this.enemyTypes[idx];
+        // if (this.x < 0 - this.width) gameOver = true;
+    }
+    draw() {
+        collisionCtx.fillStyle = this.color;
+        collisionCtx.fillRect(this.x, this.y, this.width, this.height);
 
-            switch (type) {
-                case "worm":
-                    this.enemies.push(new Worm(this));
-                    break;
-                case "ghost":
-                    this.enemies.push(new Ghost(this));
-                    break;
-                default:
-                    console.log("Type not defined.");
-            }
+        ctx.drawImage(
+            this.image,
+            this.frame * this.spriteWidth,
+            0,
+            this.spriteWidth,
+            this.spriteHeight,
+            this.x,
+            this.y,
+            this.width,
+            this.height
+        );
+    }
+}
 
-            this.enemies.sort(function (a, b) {
-                // sorted by y-position
-                return a.y - b.y;
-            });
+let explosions = [];
+class Explosion {
+    constructor(x, y, size) {
+        this.image = new Image();
+        this.image.src = "boom.png";
+        this.spriteWidth = 200;
+        this.spriteHeight = 179;
+        this.size = size;
+        this.x = x;
+        this.y = y;
+        this.frame = 0;
+        this.sound = new Audio();
+        this.sound.src = "boom.wav";
+        this.timeSinceLastFrame = 0;
+        this.frameInterval = 200;
+        this.markedForDeletion = false;
+    }
+    update(deltatime) {
+        if (this.frame === 0) this.sound.play();
+        this.timeSinceLastFrame += deltatime;
+        if (this.timeSinceLastFrame > this.frameInterval) {
+            this.frame++;
+
+            this.timeSinceLastFrame = 0;
+
+            if (this.frame > 5) this.markedForDeletion = true;
         }
     }
-
-    class Enemy {
-        constructor(game) {
-            this.game = game;
-            this.markedForDeletion = false;
-        }
-        update(deltaTime) {
-            this.x -= this.vx * deltaTime;
-            if (this.x < 0 - this.width) this.markedForDeletion = true;
-        }
-        draw(ctx) {
-            ctx.drawImage(
-                this.image,
-                0,
-                0,
-                this.spriteWidth,
-                this.spriteHeight,
-                this.x,
-                this.y,
-                this.width,
-                this.height
-            );
-        }
+    draw() {
+        ctx.drawImage(
+            this.image,
+            this.frame * this.spriteWidth,
+            0,
+            this.spriteWidth,
+            this.spriteHeight,
+            this.x,
+            this.y - this.size / 4,
+            this.size,
+            this.size
+        );
     }
+}
 
-    class Worm extends Enemy {
-        constructor(game) {
-            super(game);
-            this.spriteWidth = 229;
-            this.spriteHeight = 171;
-            this.width = this.spriteWidth / 2;
-            this.height = this.spriteHeight / 2;
-            this.x = this.game.width;
-            this.y = Math.random() * this.game.height;
-            this.image = new Image();
-            this.image.src = "enemy_worm.png";
-            this.vx = Math.random() * 0.1 + 0.1;
+let particles = [];
+class Particle {
+    constructor(x, y, size, color) {
+        this.size = size;
+        this.x = x + this.size / 2 + Math.random() * 50 - 25;
+        this.y = y + this.size / 3 + Math.random() * 50 - 25;
+
+        this.radius = (Math.random() * this.size) / 10;
+        this.maxRadius = Math.random() * 20 + 35;
+        this.markedForDeletion = false;
+        this.speedX = Math.random() * 1 + 0.5;
+        this.color = color;
+    }
+    update() {
+        this.x += this.speedX;
+        this.radius += 0.5;
+        if (this.radius > this.maxRadius - 5) this.markedForDeletion = true;
+    }
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = 1 - this.radius / this.maxRadius;
+        ctx.beginPath();
+        ctx.fillStyle = this.color;
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function drawScore() {
+    ctx.fillStyle = "black";
+    ctx.fillText("Score: " + score, 50, 75);
+    ctx.fillStyle = "white";
+    ctx.fillText("Score: " + score, 55, 80);
+}
+
+function drawGameOver() {
+    ctx.textAlign = "center";
+
+    ctx.fillStyle = "black";
+    ctx.fillText(
+        "GAME OVER", // your score is: " + score,
+        canvas.width / 2,
+        canvas.height / 2
+    );
+
+    ctx.fillStyle = "white";
+    ctx.fillText(
+        "GAME OVER", // your score is: " + score,
+        canvas.width / 2 + 5,
+        canvas.height / 2 + 5
+    );
+}
+
+window.addEventListener("click", function (e) {
+    const detectPixelColor = collisionCtx.getImageData(e.x, e.y, 1, 1);
+    console.log(detectPixelColor);
+    const pc = detectPixelColor.data;
+    ravens.forEach((obj) => {
+        if (
+            obj.randomColors[0] === pc[0] &&
+            obj.randomColors[1] === pc[1] &&
+            obj.randomColors[2] === pc[2]
+        ) {
+            obj.markedForDeletion = true;
+            score++;
+            explosions.push(new Explosion(obj.x, obj.y, obj.width));
         }
-    }
-
-    class Ghost extends Enemy {
-        constructor(game) {
-            super(game);
-            this.spriteWidth = 261;
-            this.spriteHeight = 209;
-            this.width = this.spriteWidth / 2;
-            this.height = this.spriteHeight / 2;
-            this.x = this.game.width;
-            this.y = Math.random() * this.game.height;
-            this.image = new Image();
-            this.image.src = "enemy_ghost.png";
-            this.vx = Math.random() * 0.2 + 0.1;
-        }
-    }
-
-    let game = new Game(ctx, canvas.width, canvas.height);
-
-    let lastTime = 1;
-    function animate(timeStamp) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const deltaTime = timeStamp - lastTime;
-        lastTime = timeStamp;
-
-        game.update(deltaTime);
-        game.draw();
-
-        requestAnimationFrame(animate);
-    }
-    animate(0);
+    });
 });
+
+function animate(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    collisionCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let deltatime = timestamp - lastTime;
+    lastTime = timestamp;
+    timeToNextRaven += deltatime;
+    if (timeToNextRaven > ravenInterval) {
+        ravens.push(new Raven());
+        timeToNextRaven = 0;
+        ravens.sort(function (a, b) {
+            return a.width - b.width; // ascending order
+        });
+    }
+    drawScore();
+    // array literal; spread operator
+    [...particles, ...ravens, ...explosions].forEach((obj) =>
+        obj.update(deltatime)
+    );
+    [...particles, ...ravens, ...explosions].forEach((obj) => obj.draw());
+
+    // filter 寫法不一樣 對結果有影響。
+    ravens = ravens.filter((obj) => !obj.markedForDeletion);
+    explosions = explosions.filter((obj) => !obj.markedForDeletion);
+    particles = particles.filter((obj) => !obj.markedForDeletion);
+
+    if (!gameOver) requestAnimationFrame(animate);
+    else drawGameOver();
+}
+animate(0);
